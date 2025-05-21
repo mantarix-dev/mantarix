@@ -1,0 +1,27 @@
+[tool.poetry]
+name = "mantarix-web"
+version = "0.1.0"
+description = "Mantarix web client in Flutter."
+authors = ["Mantarix Systems Inc. <hello@mantarix.dev>"]
+license = "Apache-2.0"
+
+packages = [{ include = "mantarix_web", from = "src" }]
+
+include = [{ path = "src/mantarix_web/web/**/*", format = ["sdist", "wheel"] }]
+
+[tool.poetry.urls]
+repository = "https://github.com/mantarix-dev/mantarix"
+
+[tool.poetry.dependencies]
+python = "^3.8"
+mantarix = { version = "0.1.0" }
+fastapi = "*"
+uvicorn = { extras = ["standard"], version = "*" }
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
+
+[tool.isort]
+profile = "black"
+float_to_top = true

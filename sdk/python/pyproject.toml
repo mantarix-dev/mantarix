@@ -1,0 +1,29 @@
+[tool.poetry]
+name = "mantarix-project"
+version = "0.1.0"
+description = ""
+authors = ["Mantarix Systems Inc. <hello@mantarix.dev>"]
+license = "Apache-2.0"
+
+[tool.poetry.dependencies]
+python = "<3.14,>=3.8"
+
+[tool.poetry.group.dev.dependencies]
+mantarix-cli = {path = "packages/mantarix-cli", develop = true}
+mantarix-desktop = {path = "packages/mantarix-desktop", develop = true}
+mantarix-web = {path = "packages/mantarix-web", develop = true}
+mantarix = {path = "packages/mantarix", develop = true}
+pytest = "^7.2.0"
+black = "^22.12.0"
+tomlkit = "^0.11.6"
+cryptography = "^39.0.0"
+pyinstaller = "^6.6.0"
+pillow = "^10.3.0"
+pre-commit = "^2.21.0"
+hypercorn = "^0.14.4"
+gunicorn = "^21.2.0"
+pypi-cleanup = "0.1.4"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
