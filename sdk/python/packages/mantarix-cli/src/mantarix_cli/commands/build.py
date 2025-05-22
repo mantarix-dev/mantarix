@@ -57,6 +57,8 @@ class Command(BaseCommand):
         self.config_platform = None
         self.target_platform = None
         self.flutter_dependencies = None
+        self.flutter_dependencies_name = None
+        self.mantarix_packages_path = str(Path(__file__).parent.joinpath("packages"))
         self.package_app_path = None
         self.options = None
         self.pubspec = None
@@ -745,6 +747,11 @@ class Command(BaseCommand):
             or project_name_orig
         )
         self.flutter_dependencies = self.get_flutter_dependencies()
+        self.flutter_dependencies_name = list(self.flutter_dependencies.keys())
+        for dep in self.get_mantarix_extensions_imports(self.last_python_module_file_path if self.obfuscate else self.python_module_file_path,init=[]):
+            dep_path = os.path.join(self.mantarix_packages_path,dep)
+            if os.path.exists(dep_path) and dep not in self.flutter_dependencies_name:
+                self.flutter_dependencies_name.append(dep)
         if self.verbose > 0:
             console.log(
                 f"Additional Flutter dependencies: {self.flutter_dependencies}"
@@ -948,7 +955,7 @@ class Command(BaseCommand):
                 },
                 "android_signing": self.options.android_signing_key_store is not None,
             },
-            "flutter": {"dependencies": list(self.flutter_dependencies.keys())},
+            "flutter": {"dependencies": self.flutter_dependencies_name},
         }
 
     def get_flutter_dependencies(self) -> dict:
@@ -1042,7 +1049,6 @@ class Command(BaseCommand):
         self.status.update(
             f"[bold blue]Adding Local Mantarix Packages To Project {self.emojis['loading']}... "
         )
-        self.mantarix_packages_path = str(Path(__file__).parent.joinpath("packages"))
         if not os.path.exists(self.mantarix_packages_path):
             console.log(
                 f"Local Mantarix Packages Not Found!"
@@ -1741,10 +1747,10 @@ class Command(BaseCommand):
         if flutter_doctor.returncode == 0 and flutter_doctor.stdout:
             console.log(flutter_doctor.stdout, style=style)
     
-    def get_mantarix_extensions_imports(self,file_path):
+    def get_mantarix_extensions_imports(self,file_path,init=["mantarix"]):
         with open(file_path, "r", encoding="utf-8") as f:
             tree = ast.parse(f.read(), filename=file_path)
-        imported_items = ["mantarix"]
+        imported_items = init
         for node in ast.walk(tree):
             if isinstance(node, ast.Import):
                 for alias in node.names:

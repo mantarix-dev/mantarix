@@ -43,7 +43,6 @@ class Camera(ConstrainedControl):
 
     Online docs: https://mantarix.dev/docs/controls/camera
     """
-
     def __init__(
         self,
         enable_audio: Optional[bool] = None,
@@ -132,6 +131,9 @@ class Camera(ConstrainedControl):
             self.__error_content._set_attr_internal("n", "error_content")
             children.append(self.__error_content)
         return children
+    
+    def switch_camera(self):
+        self.page.invoke_method("switch_camera",control_id=self.uid)
 
     def capture_image(self):
         self.page.invoke_method("capture_image", control_id=self.uid)
