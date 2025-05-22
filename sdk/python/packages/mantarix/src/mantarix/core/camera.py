@@ -43,6 +43,7 @@ class Camera(ConstrainedControl):
 
     Online docs: https://mantarix.dev/docs/controls/camera
     """
+
     def __init__(
         self,
         enable_audio: Optional[bool] = None,
@@ -133,21 +134,20 @@ class Camera(ConstrainedControl):
         return children
     
     def switch_camera(self):
-        self.page.invoke_method("switch_camera",control_id=self.uid)
+        self.page.invoke_method("switch_camera")
 
     def capture_image(self):
-        self.page.invoke_method("capture_image", control_id=self.uid)
+        self.page.invoke_method("capture_image")
 
     async def capture_image_async(self):
-        await self.page.invoke_method_async("capture_image", control_id=self.uid)
+        await self.page.invoke_method_async("capture_image")
 
     def start_video_recording(self):
-        self.page.invoke_method("start_video_recording", control_id=self.uid)
+        self.page.invoke_method("start_video_recording")
 
     def stop_video_recording(self, wait_timeout: Optional[int] = 5):
         return self.page.invoke_method(
             "stop_video_recording",
-            control_id=self.uid,
             wait_for_result=True,
             wait_timeout=wait_timeout,
         )
@@ -155,7 +155,6 @@ class Camera(ConstrainedControl):
     async def stop_video_recording_async(self, wait_timeout: Optional[int] = 5):
         return await self.page.invoke_method_async(
             "stop_video_recording",
-            control_id=self.uid,
             wait_for_result=True,
             wait_timeout=wait_timeout,
         )
