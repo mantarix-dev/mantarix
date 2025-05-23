@@ -134,10 +134,10 @@ class Camera(ConstrainedControl):
         return children
     
     def switch_camera(self):
-        self.page.invoke_method("switch_camera")
+        self..invoke_method("switch_camera")
 
     def capture_image(self):
-        self.page.invoke_method("capture_image")
+        self..invoke_method("capture_image")
     
     def initialized(self, comment: str = "", wait_timeout: Optional[float] = 25):
         out = self.invoke_method(
@@ -149,20 +149,20 @@ class Camera(ConstrainedControl):
         return int(str(out)) > 0
 
     async def capture_image_async(self):
-        await self.page.invoke_method_async("capture_image")
+        await self..invoke_method_async("capture_image")
 
     def start_video_recording(self):
-        self.page.invoke_method("start_video_recording")
+        self..invoke_method("start_video_recording")
 
     def stop_video_recording(self, wait_timeout: Optional[int] = 5):
-        return self.page.invoke_method(
+        return self..invoke_method(
             "stop_video_recording",
             wait_for_result=True,
             wait_timeout=wait_timeout,
         )
 
     async def stop_video_recording_async(self, wait_timeout: Optional[int] = 5):
-        return await self.page.invoke_method_async(
+        return await self..invoke_method_async(
             "stop_video_recording",
             wait_for_result=True,
             wait_timeout=wait_timeout,
