@@ -138,6 +138,15 @@ class Camera(ConstrainedControl):
 
     def capture_image(self):
         self.page.invoke_method("capture_image")
+    
+    def initialized(self, comment: str = "", wait_timeout: Optional[float] = 25):
+        out = self.invoke_method(
+            "initialized",
+            {"comment": comment},
+            wait_for_result=True,
+            wait_timeout=wait_timeout,
+        )
+        return int(str(out)) > 0
 
     async def capture_image_async(self):
         await self.page.invoke_method_async("capture_image")
