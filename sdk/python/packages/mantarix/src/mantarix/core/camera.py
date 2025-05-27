@@ -12,6 +12,8 @@ from mantarix.core.types import (
     ScaleValue,
 )
 
+import base64
+import io
 
 class ResolutionPreset(Enum):
     LOW = "low"
@@ -134,10 +136,13 @@ class Camera(ConstrainedControl):
         return children
     
     def switch_camera(self):
-        self..invoke_method("switch_camera")
+        self.invoke_method("switch_camera")
 
     def capture_image(self):
-        self..invoke_method("capture_image")
+        try:
+            return io.BytesIO(base64.b64decode(str(self.invoke_method("capture_image",wait_for_result=True))))
+        except:
+            return False
     
     def initialized(self, comment: str = "", wait_timeout: Optional[float] = 25):
         out = self.invoke_method(
@@ -149,24 +154,25 @@ class Camera(ConstrainedControl):
         return int(str(out)) > 0
 
     async def capture_image_async(self):
-        await self..invoke_method_async("capture_image")
+        try:
+            return io.BytesIO(base64.b64decode(str(await self.invoke_method_async("capture_image",wait_for_result=True))))
+        except:
+            return False
 
     def start_video_recording(self):
-        self..invoke_method("start_video_recording")
+        self.invoke_method("start_video_recording")
 
-    def stop_video_recording(self, wait_timeout: Optional[int] = 5):
-        return self..invoke_method(
-            "stop_video_recording",
-            wait_for_result=True,
-            wait_timeout=wait_timeout,
-        )
+    def stop_video_recording(self):
+        try:
+            return io.BytesIO(base64.b64decode(str(self.invoke_method("stop_video_recording",wait_for_result=True))))
+        except:
+            return False
 
     async def stop_video_recording_async(self, wait_timeout: Optional[int] = 5):
-        return await self..invoke_method_async(
-            "stop_video_recording",
-            wait_for_result=True,
-            wait_timeout=wait_timeout,
-        )
+        try:
+            return io.BytesIO(base64.b64decode(str(await self.invoke_method_async("stop_video_recording",wait_for_result=True))))
+        except:
+            return False
 
     # enable_audio
     @property
