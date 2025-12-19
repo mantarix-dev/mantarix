@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:collection/collection.dart';
 import 'package:file_picker/file_picker.dart';
@@ -13,6 +14,20 @@ import '../models/control.dart';
 import '../utils/platform.dart';
 import '../utils/strings.dart';
 import 'mantarix_store_mixin.dart';
+
+Future<Uint8List> readAndDeleteFile(String path) {
+  return compute(_readFile, path);
+}
+
+Future<Uint8List> _readFile(String path) async {
+  final file = File(path);
+  if (!await file.exists()) {
+    return Uint8List(0);
+  }
+  final bytes = await file.readAsBytes();
+  await file.delete();
+  return bytes;
+}
 
 class FilePickerResultEvent {
   final String? path;
@@ -84,6 +99,20 @@ class _FilePickerControlState extends State<FilePickerControl>
   String? _upload;
   String? _path;
   List<PlatformFile>? _files;
+  Uint8List? bytesfile = Uint8List(0);
+  bool loadingBytes = false;
+
+  Future<void> _prepareBytesIfNeeded() async {
+    final pathfile = widget.control.attrString("pathFile", null);
+    if (pathfile == null || loadingBytes) return;
+
+    loadingBytes = true;
+    try {
+      bytesfile = await readAndDeleteFile(pathfile);
+    } finally {
+      loadingBytes = false;
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -162,22 +191,22 @@ class _FilePickerControlState extends State<FilePickerControl>
         }
         // saveFile
         else if (state?.toLowerCase() == "savefile" && !kIsWeb) {
-          FilePicker.platform
-              .saveFile(
-            dialogTitle: dialogTitle,
-            fileName: fileName,
-            initialDirectory: initialDirectory,
-            lockParentWindow: true,
-            type: fileType,
-            allowedExtensions: allowedExtensions,
-          )
-              .then((result) {
-            debugPrint("saveFile() completed");
+          () async {
+            await _prepareBytesIfNeeded();
+            final result = await FilePicker.platform.saveFile(
+              dialogTitle: dialogTitle,
+              fileName: fileName,
+              initialDirectory: initialDirectory,
+              lockParentWindow: true,
+              type: fileType,
+              allowedExtensions: allowedExtensions,
+              bytes: bytesfile,
+            );
             _path = result;
             sendEvent();
-          });
+          }();
         }
-        // saveFile
+        // getDirectoryPath
         else if (state?.toLowerCase() == "getdirectorypath" && !kIsWeb) {
           FilePicker.platform
               .getDirectoryPath(

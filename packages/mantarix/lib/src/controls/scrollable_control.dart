@@ -18,6 +18,7 @@ class ScrollableControl extends StatefulWidget {
   final ScrollController? scrollController;
   final bool? parentAdaptive;
   final MantarixControlBackend backend;
+  final ScrollPhysics? physics;
 
   const ScrollableControl(
       {super.key,
@@ -26,7 +27,8 @@ class ScrollableControl extends StatefulWidget {
       required this.scrollDirection,
       this.scrollController,
       required this.parentAdaptive,
-      required this.backend});
+      required this.backend,
+      this.physics});
 
   @override
   State<ScrollableControl> createState() => _ScrollableControlState();
@@ -155,6 +157,7 @@ class _ScrollableControlState extends State<ScrollableControl>
               child: SingleChildScrollView(
                 controller: _controller,
                 scrollDirection: widget.scrollDirection,
+                physics: widget.physics,
                 child: widget.child,
               ))
           : widget.child;

@@ -1,6 +1,8 @@
 import 'dart:convert';
+import 'dart:io';
 
 import 'package:flutter/material.dart';
+import 'block_scroll_notification.dart';
 
 import '../mantarix_control_backend.dart';
 import '../models/control.dart';
@@ -10,6 +12,7 @@ import '../utils/numbers.dart';
 import '../utils/others.dart';
 import '../utils/time.dart';
 import 'create_control.dart';
+import 'dart:math' as math;
 import 'error.dart';
 
 class InteractiveViewerControl extends StatefulWidget {
@@ -41,6 +44,8 @@ class _InteractiveViewerControlState extends State<InteractiveViewerControl>
   late AnimationController _animationController;
   Animation<Matrix4>? _animation;
   Matrix4? _savedMatrix;
+  final GlobalKey _childKey = GlobalKey();
+  bool _didFit = false;
 
   @override
   void initState() {
@@ -90,6 +95,17 @@ class _InteractiveViewerControlState extends State<InteractiveViewerControl>
             _transformationController.value = _savedMatrix!;
           }
           break;
+        case "fit_scale":
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            final renderBox = _childKey.currentContext?.findRenderObject() as RenderBox?;
+            final parentBox = context.findRenderObject() as RenderBox?;
+            if (renderBox != null && renderBox.hasSize && parentBox != null && parentBox.hasSize) {
+              final parentSize = Size(parentBox.size.width, parentBox.size.height);
+              _fitToScreen(parentSize);
+              _didFit = true;
+            }
+          });
+          break;
       }
       return null;
     });
@@ -104,86 +120,128 @@ class _InteractiveViewerControlState extends State<InteractiveViewerControl>
 
   @override
   Widget build(BuildContext context) {
-    debugPrint("InteractiveViewer build: ${widget.control.id}");
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        if (!_didFit && widget.control.attrBool("fitScale", false)!) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            _fitToScreen(Size(constraints.maxWidth, constraints.maxHeight));
+            _didFit = true;
+          });
+        }
 
-    var contentCtrls = widget.children.where((c) => c.isVisible);
-    bool? adaptive = widget.control.isAdaptive ?? widget.parentAdaptive;
-    bool disabled = widget.control.isDisabled || widget.parentDisabled;
+        debugPrint("InteractiveViewer build: ${widget.control.id}");
 
-    var interactiveViewer = InteractiveViewer(
-      transformationController: _transformationController,
-      panEnabled: widget.control.attrBool("panEnabled", true)!,
-      scaleEnabled: widget.control.attrBool("scaleEnabled", true)!,
-      trackpadScrollCausesScale:
-          widget.control.attrBool("trackpadScrollCausesScale", false)!,
-      constrained: widget.control.attrBool("constrained", true)!,
-      maxScale: widget.control.attrDouble("maxScale", 2.5)!,
-      minScale: widget.control.attrDouble("minScale", 0.8)!,
-      interactionEndFrictionCoefficient: widget.control
-          .attrDouble("interactionEndFrictionCoefficient", 0.0000135)!,
-      scaleFactor: widget.control.attrDouble("scaleFactor", 200)!,
-      clipBehavior:
-          parseClip(widget.control.attrString("clipBehavior"), Clip.hardEdge)!,
-      alignment: parseAlignment(widget.control, "alignment"),
-      boundaryMargin:
-          parseEdgeInsets(widget.control, "boundaryMargin", EdgeInsets.zero)!,
-      onInteractionStart: !disabled
-          ? (ScaleStartDetails details) {
-              debugPrint(
-                  "InteractiveViewer ${widget.control.id} onInteractionStart");
-              widget.backend.triggerControlEvent(
-                  widget.control.id,
-                  "interaction_start",
-                  jsonEncode({
-                    "pc": details.pointerCount,
-                    "fp_x": details.focalPoint.dx,
-                    "fp_y": details.focalPoint.dy,
-                    "lfp_x": details.localFocalPoint.dx,
-                    "lfp_y": details.localFocalPoint.dy
-                  }));
-            }
-          : null,
-      onInteractionEnd: !disabled
-          ? (ScaleEndDetails details) {
-              debugPrint(
-                  "InteractiveViewer ${widget.control.id} onInteractionEnd");
-              widget.backend.triggerControlEvent(
-                  widget.control.id,
-                  "interaction_end",
-                  jsonEncode({
-                    "pc": details.pointerCount,
-                    "sv": details.scaleVelocity,
-                  }));
-            }
-          : null,
-      onInteractionUpdate: !disabled
-          ? (ScaleUpdateDetails details) {
-              debugPrint(
-                  "InteractiveViewer ${widget.control.id} onInteractionUpdate");
-              widget.backend.triggerControlEvent(
-                  widget.control.id,
-                  "interaction_update",
-                  jsonEncode({
-                    "pc": details.pointerCount,
-                    "fp_x": details.focalPoint.dx,
-                    "fp_y": details.focalPoint.dy,
-                    "lfp_x": details.localFocalPoint.dx,
-                    "lfp_y": details.localFocalPoint.dy,
-                    "s": details.scale,
-                    "hs": details.horizontalScale,
-                    "vs": details.verticalScale,
-                    "rot": details.rotation,
-                  }));
-            }
-          : null,
-      child: contentCtrls.isNotEmpty
-          ? createControl(widget.control, contentCtrls.first.id, disabled,
-              parentAdaptive: adaptive)
-          : const ErrorControl(
-              "InteractiveViewer.content must be provided and visible"),
+        var contentCtrls = widget.children.where((c) => c.isVisible);
+        bool? adaptive = widget.control.isAdaptive ?? widget.parentAdaptive;
+        bool disabled = widget.control.isDisabled || widget.parentDisabled;
+
+        var interactiveViewer = InteractiveViewer(
+          transformationController: _transformationController,
+          panEnabled: widget.control.attrBool("panEnabled", true)!,
+          scaleEnabled: widget.control.attrBool("scaleEnabled", true)!,
+          trackpadScrollCausesScale:
+              widget.control.attrBool("trackpadScrollCausesScale", false)!,
+          constrained: widget.control.attrBool("constrained", true)!,
+          maxScale: widget.control.attrDouble("maxScale", 2.5)!,
+          minScale: widget.control.attrDouble("minScale", 0.7)!,
+          interactionEndFrictionCoefficient: widget.control
+              .attrDouble("interactionEndFrictionCoefficient", 0.0000135)!,
+          scaleFactor: widget.control.attrDouble("scaleFactor", 200)!,
+          clipBehavior:parseClip(widget.control.attrString("clipBehavior"), Clip.hardEdge)!,
+          alignment: parseAlignment(widget.control, "alignment"),
+          boundaryMargin: parseEdgeInsets(widget.control, "boundaryMargin", EdgeInsets.zero)!,
+          onInteractionStart: !disabled
+              ? (ScaleStartDetails details) {
+                  debugPrint(
+                      "InteractiveViewer ${widget.control.id} onInteractionStart");
+                  widget.backend.triggerControlEvent(
+                      widget.control.id,
+                      "interaction_start",
+                      jsonEncode({
+                        "pc": details.pointerCount,
+                        "fp_x": details.focalPoint.dx,
+                        "fp_y": details.focalPoint.dy,
+                        "lfp_x": details.localFocalPoint.dx,
+                        "lfp_y": details.localFocalPoint.dy
+                      }));
+                }
+              : null,
+          onInteractionEnd: !disabled
+              ? (ScaleEndDetails details) {
+                  debugPrint(
+                      "InteractiveViewer ${widget.control.id} onInteractionEnd");
+                  widget.backend.triggerControlEvent(
+                      widget.control.id,
+                      "interaction_end",
+                      jsonEncode({
+                        "pc": details.pointerCount,
+                        "sv": details.scaleVelocity,
+                      }));
+                }
+              : null,
+          onInteractionUpdate: !disabled
+              ? (ScaleUpdateDetails details) {
+                  debugPrint(
+                      "InteractiveViewer ${widget.control.id} onInteractionUpdate");
+                  widget.backend.triggerControlEvent(
+                      widget.control.id,
+                      "interaction_update",
+                      jsonEncode({
+                        "pc": details.pointerCount,
+                        "fp_x": details.focalPoint.dx,
+                        "fp_y": details.focalPoint.dy,
+                        "lfp_x": details.localFocalPoint.dx,
+                        "lfp_y": details.localFocalPoint.dy,
+                        "s": details.scale,
+                        "hs": details.horizontalScale,
+                        "vs": details.verticalScale,
+                        "rot": details.rotation,
+                      }));
+                }
+              : null,
+          child: contentCtrls.isNotEmpty
+              ? Container(
+                  key: _childKey,
+                  child: createControl(widget.control, contentCtrls.first.id, disabled,parentAdaptive: adaptive),
+                )
+              : const ErrorControl(
+                  "InteractiveViewer.content must be provided and visible"),
+        );
+
+        late final Widget fw;
+        if (!(Platform.isIOS || Platform.isAndroid) && widget.control.attrBool("disableScrollArea", false)!) {
+          fw = MouseRegion(
+            onEnter: (_) {
+              const BlockParentScrollNotification(true).dispatch(context);
+            },
+            onExit: (_) {
+              const BlockParentScrollNotification(false).dispatch(context);
+            },
+            child: interactiveViewer
+          );
+        }
+        else {
+          fw = interactiveViewer;
+        }
+
+        return constrainedControl(context, fw, widget.parent, widget.control);
+      },
     );
+  }
 
-    return constrainedControl(
-        context, interactiveViewer, widget.parent, widget.control);
+  void _fitToScreen(Size parentSize) {
+    if (parentSize.isEmpty) return;
+    final RenderBox? childRenderBox =_childKey.currentContext?.findRenderObject() as RenderBox?;
+    if (childRenderBox == null || !childRenderBox.hasSize) return;
+    final childSize = childRenderBox.size;
+    final scaleX = parentSize.width / childSize.width;
+    final scaleY = parentSize.height / childSize.height;
+    final scale = math.min(math.max(scaleX < scaleY ? scaleX : scaleY, widget.control.attrDouble("minScale", 0.7)!), widget.control.attrDouble("maxScale", 2.5)!);
+    _transformationController.value = Matrix4.identity()
+      ..scale(scale)
+      ..translate(
+        (parentSize.width - childSize.width * scale) / (2 * scale),
+        (parentSize.height - childSize.height * scale) / (2 * scale),
+      );
   }
 }

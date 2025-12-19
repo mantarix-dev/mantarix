@@ -51,6 +51,8 @@ dependencies:
     path: ../packages/mantarix_audio_recorder
   mantarix_permission_handler:
     path: ../packages/mantarix_permission_handler
+  mantarix_printer:
+    path: ../packages/mantarix_printer
   mantarix_geolocator:
     path: ../packages/mantarix_geolocator
   mantarix_webview:
@@ -69,7 +71,7 @@ dependencies:
     sdk: flutter
 
 dependency_overrides:
-  webview_flutter_android: ^4.0.0
+  webview_flutter_android: 4.3.2
 
 dev_dependencies:
   flutter_test:

@@ -69,6 +69,8 @@ class InteractiveViewer(ConstrainedControl, AdaptiveControl):
         self,
         content: Control,
         pan_enabled: Optional[bool] = None,
+        fit_scale: Optional[bool] = None,
+        disable_scroll_area: Optional[bool] = None,
         scale_enabled: Optional[bool] = None,
         trackpad_scroll_causes_scale: Optional[bool] = None,
         constrained: Optional[bool] = None,
@@ -176,6 +178,8 @@ class InteractiveViewer(ConstrainedControl, AdaptiveControl):
 
         self.content = content
         self.pan_enabled = pan_enabled
+        self.fit_scale = fit_scale
+        self.disable_scroll_area = disable_scroll_area
         self.scale_enabled = scale_enabled
         self.trackpad_scroll_causes_scale = trackpad_scroll_causes_scale
         self.constrained = constrained
@@ -218,6 +222,9 @@ class InteractiveViewer(ConstrainedControl, AdaptiveControl):
 
     def pan(self, dx: Number, dy: Number):
         self.invoke_method("pan", arguments={"dx": str(dx), "dy": str(dy)})
+    
+    def fit(self):
+        self.invoke_method("fit_scale")
 
     # min_scale
     @property
@@ -265,6 +272,24 @@ class InteractiveViewer(ConstrainedControl, AdaptiveControl):
     @pan_enabled.setter
     def pan_enabled(self, value: Optional[bool]):
         self._set_attr("panEnabled", value)
+    
+    # fit_scale
+    @property
+    def fit_scale(self) -> bool:
+        return self._get_attr("fitScale", data_type="bool", def_value=True)
+
+    @fit_scale.setter
+    def fit_scale(self, value: Optional[bool]):
+        self._set_attr("fitScale", value)
+
+    # disable_scroll_area
+    @property
+    def disable_scroll_area(self) -> bool:
+        return self._get_attr("disableScrollArea", data_type="bool", def_value=True)
+
+    @disable_scroll_area.setter
+    def disable_scroll_area(self, value: Optional[bool]):
+        self._set_attr("disableScrollArea", value)
 
     # scale_enabled
     @property

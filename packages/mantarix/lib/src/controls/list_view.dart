@@ -7,6 +7,9 @@ import '../utils/others.dart';
 import 'create_control.dart';
 import 'scroll_notification_control.dart';
 import 'scrollable_control.dart';
+import 'block_scroll_notification.dart';
+
+bool _blockParentScroll = false;
 
 class ListViewControl extends StatefulWidget {
   final Control? parent;
@@ -78,63 +81,74 @@ class _ListViewControlState extends State<ListViewControl> {
             (!horizontal && constraints.maxHeight == double.infinity) ||
                 (horizontal && constraints.maxWidth == double.infinity);
 
-        Widget child = spacing > 0
-            ? ListView.separated(
-                controller: _controller,
-                cacheExtent: cacheExtent,
-                reverse: reverse,
-                clipBehavior: clipBehavior,
-                scrollDirection: scrollDirection,
-                shrinkWrap: shrinkWrap,
-                padding: padding,
-                itemCount: widget.children.length,
-                itemBuilder: (context, index) {
-                  return createControl(
-                      widget.control, visibleControls[index].id, disabled,
-                      parentAdaptive: adaptive);
-                },
-                separatorBuilder: (context, index) {
-                  return horizontal
-                      ? dividerThickness == 0
-                          ? SizedBox(width: spacing)
-                          : VerticalDivider(
-                              width: spacing, thickness: dividerThickness)
-                      : dividerThickness == 0
-                          ? SizedBox(height: spacing)
-                          : Divider(
-                              height: spacing, thickness: dividerThickness);
-                },
-              )
-            : ListView.builder(
-                controller: _controller,
-                clipBehavior: clipBehavior,
-                semanticChildCount: semanticChildCount,
-                reverse: reverse,
-                cacheExtent: cacheExtent,
-                scrollDirection: scrollDirection,
-                shrinkWrap: shrinkWrap,
-                padding: padding,
-                itemCount: widget.children.length,
-                itemExtent: itemExtent,
-                itemBuilder: (context, index) {
-                  return createControl(
-                      widget.control, visibleControls[index].id, disabled,
-                      parentAdaptive: adaptive);
-                },
-                prototypeItem: firstItemPrototype && widget.children.isNotEmpty
-                    ? createControl(
-                        widget.control, visibleControls[0].id, disabled,
-                        parentAdaptive: adaptive)
-                    : null,
-              );
-
-        child = ScrollableControl(
+        Widget child = NotificationListener<BlockParentScrollNotification>(
+          onNotification: (notification) {
+            if (_blockParentScroll != notification.block) {
+              setState(() {
+                _blockParentScroll = notification.block;
+              });
+            }
+            return true;
+          },
+          child: ScrollableControl(
             control: widget.control,
             scrollDirection: horizontal ? Axis.horizontal : Axis.vertical,
             scrollController: _controller,
             backend: widget.backend,
             parentAdaptive: adaptive,
-            child: child);
+            child: spacing > 0
+              ? ListView.separated(
+                  controller: _controller,
+                  physics: _blockParentScroll ? const NeverScrollableScrollPhysics() : null,
+                  cacheExtent: cacheExtent,
+                  reverse: reverse,
+                  clipBehavior: clipBehavior,
+                  scrollDirection: scrollDirection,
+                  shrinkWrap: shrinkWrap,
+                  padding: padding,
+                  itemCount: widget.children.length,
+                  itemBuilder: (context, index) {
+                    return createControl(
+                        widget.control, visibleControls[index].id, disabled,
+                        parentAdaptive: adaptive);
+                  },
+                  separatorBuilder: (context, index) {
+                    return horizontal
+                        ? dividerThickness == 0
+                            ? SizedBox(width: spacing)
+                            : VerticalDivider(
+                                width: spacing, thickness: dividerThickness)
+                        : dividerThickness == 0
+                            ? SizedBox(height: spacing)
+                            : Divider(
+                                height: spacing, thickness: dividerThickness);
+                  },
+                )
+              : ListView.builder(
+                  controller: _controller,
+                  physics: _blockParentScroll ? const NeverScrollableScrollPhysics() : null,
+                  clipBehavior: clipBehavior,
+                  semanticChildCount: semanticChildCount,
+                  reverse: reverse,
+                  cacheExtent: cacheExtent,
+                  scrollDirection: scrollDirection,
+                  shrinkWrap: shrinkWrap,
+                  padding: padding,
+                  itemCount: widget.children.length,
+                  itemExtent: itemExtent,
+                  itemBuilder: (context, index) {
+                    return createControl(
+                        widget.control, visibleControls[index].id, disabled,
+                        parentAdaptive: adaptive);
+                  },
+                  prototypeItem: firstItemPrototype && widget.children.isNotEmpty
+                      ? createControl(
+                          widget.control, visibleControls[0].id, disabled,
+                          parentAdaptive: adaptive)
+                      : null,
+                )
+          ),
+        );
 
         if (widget.control.attrBool("onScroll", false)!) {
           child = ScrollNotificationControl(

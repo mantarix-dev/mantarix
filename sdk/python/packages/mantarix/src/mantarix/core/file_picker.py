@@ -9,6 +9,8 @@ from mantarix.core.event_handler import EventHandler
 from mantarix.core.ref import Ref
 from mantarix.core.types import OptionalEventCallable
 from mantarix.utils import deprecated
+import os
+import time
 
 try:
     from typing import Literal
@@ -198,6 +200,7 @@ class FilePicker(Control):
         initial_directory: Optional[str] = None,
         file_type: FilePickerFileType = FilePickerFileType.ANY,
         allowed_extensions: Optional[List[str]] = None,
+        bytesfile: Optional[bytes] = None
     ):
         self.state = FilePickerState.SAVE_FILE
         self.dialog_title = dialog_title
@@ -205,6 +208,16 @@ class FilePicker(Control):
         self.initial_directory = initial_directory
         self.file_type = file_type
         self.allowed_extensions = allowed_extensions
+        if bytesfile:
+            try:
+                fpath = os.path.join(os.getenv("MANTARIX_APP_STORAGE_TEMP"), f"{time.time_ns()}")
+                with open(fpath, "wb") as f:
+                    f.write(bytesfile)
+                self.path_file = fpath
+            except:
+                self.path_file = None
+        else:
+            self.path_file = None
         self.update()
 
     @deprecated(
@@ -219,9 +232,10 @@ class FilePicker(Control):
         initial_directory: Optional[str] = None,
         file_type: FilePickerFileType = FilePickerFileType.ANY,
         allowed_extensions: Optional[List[str]] = None,
+        bytesfile: Optional[bytes] = None
     ):
         self.save_file(
-            dialog_title, file_name, initial_directory, file_type, allowed_extensions
+            dialog_title, file_name, initial_directory, file_type, allowed_extensions, bytesfile
         )
 
     def get_directory_path(
@@ -290,6 +304,15 @@ class FilePicker(Control):
     @file_name.setter
     def file_name(self, value: Optional[str]):
         self._set_attr("fileName", value)
+
+    # path_file
+    @property
+    def path_file(self) -> Optional[str]:
+        return self._get_attr("pathFile")
+
+    @path_file.setter
+    def path_file(self, value: Optional[str]):
+        self._set_attr("pathFile", value)
 
     # initial_directory
     @property

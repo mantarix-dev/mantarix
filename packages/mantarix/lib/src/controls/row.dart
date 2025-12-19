@@ -1,4 +1,5 @@
 import 'package:flutter/widgets.dart';
+import 'package:mantarix/src/utils/others.dart';
 
 import '../mantarix_control_backend.dart';
 import '../models/control.dart';
@@ -6,6 +7,9 @@ import '../utils/alignment.dart';
 import 'create_control.dart';
 import 'scroll_notification_control.dart';
 import 'scrollable_control.dart';
+import 'block_scroll_notification.dart';
+
+final ValueNotifier<bool> _blockParentScrollNotifier = ValueNotifier(false);
 
 class RowControl extends StatelessWidget {
   final Control? parent;
@@ -35,6 +39,7 @@ class RowControl extends StatelessWidget {
     bool wrap = control.attrBool("wrap", false)!;
     bool disabled = control.isDisabled || parentDisabled;
     bool? adaptive = control.attrBool("adaptive") ?? parentAdaptive;
+    ScrollMode scrollMode = parseScrollMode(control.attrString("scroll"), ScrollMode.none)!;
 
     List<Widget> controls = [];
 
@@ -77,12 +82,39 @@ class RowControl extends StatelessWidget {
             children: controls,
           );
 
-    child = ScrollableControl(
-        control: control,
-        scrollDirection: wrap ? Axis.vertical : Axis.horizontal,
-        backend: backend,
-        parentAdaptive: adaptive,
-        child: child);
+    if (scrollMode == ScrollMode.none) {
+      child = ScrollableControl(
+          control: control,
+          scrollDirection: wrap ? Axis.vertical : Axis.horizontal,
+          backend: backend,
+          parentAdaptive: adaptive,
+          child: child,
+        );
+    }
+    else {
+      child = NotificationListener<BlockParentScrollNotification>(
+        onNotification: (notification) {
+          if (_blockParentScrollNotifier.value != notification.block) {
+            _blockParentScrollNotifier.value = notification.block;
+          }
+          return true;
+        },
+        child: ValueListenableBuilder<bool>(
+          valueListenable: _blockParentScrollNotifier,
+          child: child,
+          builder: (context, block, child) {
+            return ScrollableControl(
+              control: control,
+              scrollDirection: wrap ? Axis.vertical : Axis.horizontal,
+              backend: backend,
+              parentAdaptive: adaptive,
+              physics: block ? const NeverScrollableScrollPhysics() : null,
+              child: child!,
+            );
+          },
+        ),
+      );
+    }
 
     if (control.attrBool("onScroll", false)!) {
       child = ScrollNotificationControl(

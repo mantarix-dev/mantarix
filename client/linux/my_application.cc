@@ -7,6 +7,10 @@
 
 #include "flutter/generated_plugin_registrant.h"
 
+#include <libgen.h>
+#include <unistd.h>
+#include <limits.h>
+
 struct _MyApplication {
   GtkApplication parent_instance;
   char** dart_entrypoint_arguments;
@@ -19,6 +23,26 @@ static void my_application_activate(GApplication* application) {
   MyApplication* self = MY_APPLICATION(application);
   GtkWindow* window =
       GTK_WINDOW(gtk_application_window_new(GTK_APPLICATION(application)));
+  char exe_path[PATH_MAX];
+  ssize_t len = readlink("/proc/self/exe", exe_path, sizeof(exe_path) - 1);
+  if (len != -1) {
+    exe_path[len] = '\0';
+    char* dir = dirname(exe_path);
+    char icon_path[PATH_MAX];
+    snprintf(icon_path, sizeof(icon_path), "%s/data/icons/icon.png", dir);
+
+    GError* error = NULL;
+    GdkPixbuf* icon = gdk_pixbuf_new_from_file(icon_path, &error);
+    if (icon != NULL) {
+      gtk_window_set_icon(GTK_WINDOW(window), icon);
+      g_object_unref(icon);
+    } else {
+      g_warning("Failed to load icon from path: %s", error ? error->message : "unknown error");
+      if (error) g_error_free(error);
+    }
+  } else {
+    g_warning("Failed to get executable path for icon.");
+  }
 
   // Use a header bar when running in GNOME as this is the common style used
   // by applications and is the setup most users will be using (e.g. Ubuntu

@@ -43,6 +43,9 @@ import 'mantarix_store_mixin.dart';
 import 'navigation_drawer.dart';
 import 'scroll_notification_control.dart';
 import 'scrollable_control.dart';
+import 'block_scroll_notification.dart';
+
+bool _blockParentScroll = false;
 
 enum PageDesign { material, cupertino }
 
@@ -941,12 +944,24 @@ class _ViewControlState extends State<ViewControl> with MantarixStoreMixin {
                 crossAxisAlignment: crossAlignment,
                 children: controls);
 
-            Widget child = ScrollableControl(
+            Widget child = NotificationListener<BlockParentScrollNotification>(
+              onNotification: (notification) {
+                if (_blockParentScroll != notification.block) {
+                  setState(() {
+                    _blockParentScroll = notification.block;
+                  });
+                }
+                return true;
+              },
+              child: ScrollableControl(
                 control: control,
                 scrollDirection: Axis.vertical,
                 backend: widget.backend,
                 parentAdaptive: adaptive,
-                child: column);
+                physics: _blockParentScroll ? const NeverScrollableScrollPhysics() : null,
+                child: column,
+              ),
+            );
 
             if (control.attrBool("onScroll", false)!) {
               child = ScrollNotificationControl(

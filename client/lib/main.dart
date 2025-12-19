@@ -18,6 +18,8 @@ import 'package:mantarix_lottie/mantarix_lottie.dart' as mantarix_lottie;
 import 'package:mantarix_map/mantarix_map.dart' as mantarix_map;
 import 'package:mantarix_permission_handler/mantarix_permission_handler.dart'
     as mantarix_permission_handler;
+import 'package:mantarix_printer/mantarix_printer.dart'
+    as mantarix_printer;
 import 'package:mantarix_rive/mantarix_rive.dart' as mantarix_rive;
 import 'package:mantarix_ads/mantarix_ads.dart' as mantarix_ads;
 // --FAT_CLIENT_START--
@@ -47,6 +49,7 @@ void main([List<String>? args]) async {
   mantarix_audio_recorder.ensureInitialized();
   mantarix_geolocator.ensureInitialized();
   mantarix_permission_handler.ensureInitialized();
+  mantarix_printer.ensureInitialized();
   mantarix_lottie.ensureInitialized();
   mantarix_map.ensureInitialized();
   mantarix_ads.ensureInitialized();
@@ -119,6 +122,7 @@ void main([List<String>? args]) async {
       mantarix_audio_recorder.createControl,
       mantarix_geolocator.createControl,
       mantarix_permission_handler.createControl,
+      mantarix_printer.createControl,
       mantarix_lottie.createControl,
       mantarix_map.createControl,
       mantarix_ads.createControl,

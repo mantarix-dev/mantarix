@@ -56,7 +56,7 @@ class Command(BaseCommand):
         self.package_platform = None
         self.config_platform = None
         self.target_platform = None
-        self.flutter_dependencies = None
+        self.flutter_dependencies = {}
         self.flutter_dependencies_name = None
         self.mantarix_packages_path = str(Path(__file__).parent.joinpath("packages"))
         self.package_app_path = None
@@ -76,7 +76,9 @@ class Command(BaseCommand):
         self.verbose = False
         self.build_dir = None
         self.obfuscate = False
+        self.asia = False
         self.flutter_dir: Optional[Path] = None
+        self.flutter_packages_dir = None
         self.flutter_exe = None
         self.pck_name = {
             "ads":"mantarix_ads",
@@ -281,6 +283,11 @@ class Command(BaseCommand):
             "--obfuscate",
             action="store_true",
             help="Do obfuscate and compile app and packages in build output"
+        )
+        parser.add_argument(
+            "--asia",
+            action="store_true",
+            help="It is used to bypass restrictions"
         )
         parser.add_argument(
             "--project",
@@ -580,10 +587,12 @@ class Command(BaseCommand):
             self.validate_entry_point()
             self.setup_template_data()
             self.create_flutter_project()
+            self.package_python_app()
+            self.register_flutter_extensions()
+            self.create_flutter_project(second_pass=True)
             self.load_pubspec()
             self.customize_icons_and_splash_images()
             self.generate_icons_and_splash_screens()
-            self.package_python_app()
             self.flutter_build()
             self.copy_build_output()
 
@@ -611,6 +620,7 @@ class Command(BaseCommand):
                 f"Path to Mantarix app does not exist or is not a directory: {self.python_app_path}",
             )
         self.obfuscate = self.options.obfuscate
+        self.asia = self.options.asia
         if self.obfuscate:
             pap = os.path.join(os.path.dirname(self.python_app_path),"obfuscator")
             if os.path.exists(pap):shutil.rmtree(pap)
@@ -649,6 +659,7 @@ class Command(BaseCommand):
 
         self.build_dir = self.python_app_path.joinpath("build")
         self.flutter_dir = Path(self.build_dir).joinpath("flutter")
+        self.flutter_packages_dir = self.build_dir.joinpath("flutter-packages")
         self.out_dir = (
             Path(self.options.output_dir).resolve()
             if self.options.output_dir
@@ -975,7 +986,7 @@ class Command(BaseCommand):
 
         return flutter_dependencies
 
-    def create_flutter_project(self):
+    def create_flutter_project(self, second_pass=False):
         assert self.options
         assert self.get_pyproject
         assert self.flutter_dir
@@ -1000,16 +1011,17 @@ class Command(BaseCommand):
         )
 
         # if options.clear_cache is set, delete any existing Flutter bootstrap project directory
-        if self.options.clear_cache and self.flutter_dir.exists():
+        if self.options.clear_cache and self.flutter_dir.exists() and not second_pass:
             if self.verbose > 1:
                 console.log(f"Deleting {self.flutter_dir}")
             shutil.rmtree(self.flutter_dir, ignore_errors=True)
 
         # create a new Flutter bootstrap project directory, if non-existent
-        self.flutter_dir.mkdir(parents=True, exist_ok=True)
-        self.status.update(
-            f"[bold blue]Creating Flutter bootstrap project from {template_url} with ref {template_ref} {self.emojis['loading']}... "
-        )
+        if not second_pass:
+            self.flutter_dir.mkdir(parents=True, exist_ok=True)
+            self.status.update(
+                f"[bold blue]Creating Flutter bootstrap project from {template_url} with ref {template_ref} {self.emojis['loading']}... "
+            )
 
         try:
             from cookiecutter.main import cookiecutter
@@ -1028,9 +1040,11 @@ class Command(BaseCommand):
         except Exception as e:
             shutil.rmtree(self.flutter_dir)
             self.cleanup(1, f"{e}")
-        console.log(
-            f"Created Flutter bootstrap project from {template_url} with ref {template_ref} {self.emojis['checkmark']}"
-        )
+
+        if not second_pass:
+            console.log(
+                f"Created Flutter bootstrap project from {template_url} with ref \"{template_ref}\" {self.emojis['checkmark']}"
+            )
 
     def load_pubspec(self):
         assert self.pubspec_path
@@ -1086,6 +1100,10 @@ class Command(BaseCommand):
                     f"Project name cannot have the same name as one of its dependencies: {dep}. "
                     f"Use --project option to specify a different project name.",
                 )
+
+        # save pubspec.yaml
+        with open(self.pubspec_path, "w", encoding="utf8") as f:
+            yaml.dump(self.pubspec, f)
 
     def customize_icons_and_splash_images(self):
         assert self.package_app_path
@@ -1315,7 +1333,7 @@ class Command(BaseCommand):
         )
         # icons
         icons_result = self.run(
-            [self.dart_exe, "run", "flutter_launcher_icons"],
+            [self.dart_exe, "run", "--suppress-analytics", "flutter_launcher_icons"],
             cwd=str(self.flutter_dir),
             capture_output=self.verbose < 1,
         )
@@ -1333,7 +1351,7 @@ class Command(BaseCommand):
                 f"[bold blue]Generating splash screens {self.emojis['loading']}... "
             )
             splash_result = self.run(
-                [self.dart_exe, "run", "flutter_native_splash:create"],
+                [self.dart_exe, "run", "--suppress-analytics", "flutter_native_splash:create"],
                 cwd=str(self.flutter_dir),
                 capture_output=self.verbose < 1,
             )
@@ -1352,6 +1370,7 @@ class Command(BaseCommand):
         assert self.package_app_path
         assert self.build_dir
         assert self.flutter_dir
+        assert self.flutter_packages_dir
 
         if self.obfuscate:
             self.status.update(
@@ -1365,6 +1384,7 @@ class Command(BaseCommand):
         package_args = [
             self.dart_exe,
             "run",
+            "--suppress-analytics",
             "serious_python:main",
             "package",
             str(self.package_app_path),
@@ -1398,12 +1418,26 @@ class Command(BaseCommand):
             )
         elif requirements_txt.exists():
             package_args.extend(["--requirements", f"-r,{requirements_txt}"])
-
-        # site-packages variable
-        if self.package_platform in ["Android", "iOS"]:
-            package_env["SERIOUS_PYTHON_SITE_PACKAGES"] = str(
-                self.build_dir / "site-packages"
+        else:
+            mantarix_version = (
+                mantarix.version.version if mantarix.version.version else update_version()
             )
+            package_args.extend(
+                [
+                    "--requirements",
+                    f"mantarix=={mantarix_version}"
+                ]
+            )
+        # site-packages variable
+        package_env["SERIOUS_PYTHON_SITE_PACKAGES"] = str(
+            self.build_dir / "site-packages"
+        )
+
+        # flutter-packages variable
+        if self.flutter_packages_dir.exists():
+            shutil.rmtree(self.flutter_packages_dir)
+
+        package_env["SERIOUS_PYTHON_FLUTTER_PACKAGES"] = str(self.flutter_packages_dir)
 
         # exclude
         exclude_list = ["build"]
@@ -1481,6 +1515,32 @@ class Command(BaseCommand):
 
         console.log(f"Packaged Python app {self.emojis['checkmark']}")
 
+    def register_flutter_extensions(self):
+        assert self.flutter_packages_dir
+        assert isinstance(self.flutter_dependencies, dict)
+        assert self.template_data
+
+        if not self.flutter_packages_dir.exists():
+            return
+
+        if not self.flutter_packages_dir.exists():
+            return
+
+        self.status.update(f"[bold blue]Registering Flutter user extensions...")
+
+        for fp in os.listdir(self.flutter_packages_dir):
+            if (self.flutter_packages_dir / fp / "pubspec.yaml").exists():
+                ext_dir = str(self.flutter_packages_dir / fp)
+                if self.verbose > 0:
+                    console.log(f"Found Flutter extension at {ext_dir}")
+                self.flutter_dependencies[fp] = {"path": ext_dir}
+
+        self.template_data["flutter"]["dependencies"] = list(
+            self.flutter_dependencies.keys()
+        )
+
+        console.log(f"Registered Flutter user extensions {self.emojis['checkmark']}")
+
     def flutter_build(self):
         assert self.options
         assert self.build_dir
@@ -1495,15 +1555,16 @@ class Command(BaseCommand):
             self.flutter_exe,
             "build",
             self.platforms[self.options.target_platform]["flutter_build_command"],
+            "--no-version-check",
+            "--suppress-analytics",
         ]
 
         build_env = {}
 
         # site-packages variable
-        if self.package_platform in ["Android", "iOS"]:
-            build_env["SERIOUS_PYTHON_SITE_PACKAGES"] = str(
-                self.build_dir / "site-packages"
-            )
+        build_env["SERIOUS_PYTHON_SITE_PACKAGES"] = str(
+            self.build_dir / "site-packages"
+        )
 
         android_signing_key_store = (
             self.options.android_signing_key_store
@@ -1675,6 +1736,12 @@ class Command(BaseCommand):
             cmd_env = os.environ.copy()
             for k, v in env.items():
                 cmd_env[k] = v
+        
+        if self.asia:
+            if cmd_env is None:
+                cmd_env = os.environ.copy()
+            cmd_env["PUB_HOSTED_URL"] = "https://pub.flutter-io.cn"
+            cmd_env["FLUTTER_STORAGE_BASE_URL"] = "https://storage.flutter-io.cn"
 
         r = subprocess.run(
             args,
@@ -1740,7 +1807,7 @@ class Command(BaseCommand):
             f"[bold blue]Running Flutter doctor {self.emojis['loading']}... "
         )
         flutter_doctor = self.run(
-            [self.flutter_exe, "doctor"],
+            [self.flutter_exe, "doctor", "--no-version-check", "--suppress-analytics"],
             cwd=os.getcwd(),
             capture_output=True,
         )
